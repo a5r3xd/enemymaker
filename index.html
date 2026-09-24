@@ -1,0 +1,649 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Physics Player</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: Arial, sans-serif;
+    }
+
+    canvas {
+        display: block;
+    }
+
+    #ui {
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        color: white;
+        font-size: 18px;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    #menuButton {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        padding: 9px 15px;
+        background: #222;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    #menuButton:hover {
+        background: #333;
+    }
+
+    #menu {
+        position: fixed;
+        top: 55px;
+        right: 15px;
+        width: 250px;
+        background: #151515;
+        color: white;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 15px;
+        display: none;
+        user-select: none;
+    }
+
+    #menu.open {
+        display: block;
+    }
+
+    .menuEntry {
+        margin-bottom: 15px;
+    }
+
+    .menuEntry label {
+        display: block;
+        margin-bottom: 7px;
+    }
+
+    #enemyMaxHp {
+        width: 100%;
+    }
+
+    #spawnEnemy {
+        width: 100%;
+        padding: 10px;
+        background: #246b24;
+        color: white;
+        border: 1px solid #4d994d;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    #spawnEnemy:hover {
+        background: #318631;
+    }
+
+    #maxHpValue {
+        font-weight: bold;
+    }
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+    HP: <span id="hp">10</span>/10<br>
+    Attack Damage: 2
+</div>
+
+<button id="menuButton">Menu</button>
+
+<div id="menu">
+
+    <div class="menuEntry">
+        <label>
+            Enemy Maximum HP:
+            <span id="maxHpValue">10</span>
+        </label>
+
+        <input
+            type="range"
+            id="enemyMaxHp"
+            min="1"
+            max="10"
+            value="10"
+        >
+    </div>
+
+    <button id="spawnEnemy">Spawn Enemy</button>
+
+</div>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const hpText = document.getElementById("hp");
+const menuButton = document.getElementById("menuButton");
+const menu = document.getElementById("menu");
+
+const enemyMaxHpSlider = document.getElementById("enemyMaxHp");
+const maxHpValue = document.getElementById("maxHpValue");
+const spawnEnemyButton = document.getElementById("spawnEnemy");
+
+
+// ========================
+// CANVAS
+// ========================
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+
+// ========================
+// PLAYER
+// ========================
+
+const player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+
+    radius: 15,
+
+    vx: 0,
+    vy: 0,
+
+    acceleration: 0.6,
+    maxSpeed: 6,
+    friction: 0.88,
+
+    hp: 10,
+    maxHp: 10,
+
+    attackDamage: 2,
+
+    swordAngle: 0,
+
+    attacking: false,
+    attackTimer: 0,
+
+    // Fast swing
+    attackDuration: 120,
+
+    // 0.33 second cooldown
+    attackCooldown: 330,
+    lastAttackTime: -Infinity
+};
+
+
+// ========================
+// INPUT
+// ========================
+
+const keys = {};
+
+window.addEventListener("keydown", (event) => {
+    keys[event.key.toLowerCase()] = true;
+});
+
+window.addEventListener("keyup", (event) => {
+    keys[event.key.toLowerCase()] = false;
+});
+
+const mouse = {
+    x: 0,
+    y: 0
+};
+
+canvas.addEventListener("mousemove", (event) => {
+    mouse.x = event.clientX;
+    mouse.y = event.clientY;
+});
+
+
+// ========================
+// MENU
+// ========================
+
+menuButton.addEventListener("click", () => {
+    menu.classList.toggle("open");
+});
+
+enemyMaxHpSlider.addEventListener("input", () => {
+    maxHpValue.textContent = enemyMaxHpSlider.value;
+});
+
+
+// ========================
+// ENEMIES
+// ========================
+
+const enemies = [];
+
+function spawnEnemy() {
+
+    const maxHp = Number(enemyMaxHpSlider.value);
+
+    const padding = 60;
+
+    const enemy = {
+        x: padding + Math.random() * (canvas.width - padding * 2),
+        y: padding + Math.random() * (canvas.height - padding * 2),
+
+        size: 32,
+
+        maxHp: maxHp,
+        hp: maxHp
+    };
+
+    enemies.push(enemy);
+}
+
+
+// Spawn button
+spawnEnemyButton.addEventListener("click", spawnEnemy);
+
+
+// ========================
+// ENEMY COLOR
+// ========================
+
+function getEnemyColor(hp) {
+
+    // Logarithmic scale:
+    // 1 HP   = green
+    // 1000 HP = yellow
+
+    const clampedHp = Math.max(1, Math.min(1000, hp));
+
+    const t =
+        Math.log10(clampedHp) /
+        Math.log10(1000);
+
+    // Green -> Yellow
+    const red = Math.round(0 + 255 * t);
+    const green = 255;
+    const blue = 0;
+
+    return `rgb(${red}, ${green}, ${blue})`;
+}
+
+
+// ========================
+// ATTACK
+// ========================
+
+canvas.addEventListener("mousedown", (event) => {
+
+    if (event.button === 0) {
+        attack();
+    }
+
+});
+
+function attack() {
+
+    const now = performance.now();
+
+    // 0.33 second cooldown
+    if (now - player.lastAttackTime < player.attackCooldown) {
+        return;
+    }
+
+    player.lastAttackTime = now;
+
+    player.attacking = true;
+    player.attackTimer = 0;
+
+    player.swordAngle = Math.atan2(
+        mouse.y - player.y,
+        mouse.x - player.x
+    );
+}
+
+
+// ========================
+// UPDATE
+// ========================
+
+function update() {
+
+    // ========================
+    // MOVEMENT
+    // ========================
+
+    let moveX = 0;
+    let moveY = 0;
+
+    if (keys["w"]) moveY -= 1;
+    if (keys["s"]) moveY += 1;
+    if (keys["a"]) moveX -= 1;
+    if (keys["d"]) moveX += 1;
+
+    // Normalize diagonal movement
+    if (moveX !== 0 || moveY !== 0) {
+
+        const length =
+            Math.sqrt(
+                moveX * moveX +
+                moveY * moveY
+            );
+
+        moveX /= length;
+        moveY /= length;
+
+        player.vx += moveX * player.acceleration;
+        player.vy += moveY * player.acceleration;
+    }
+
+
+    // ========================
+    // SPEED LIMIT
+    // ========================
+
+    const speed =
+        Math.sqrt(
+            player.vx * player.vx +
+            player.vy * player.vy
+        );
+
+    if (speed > player.maxSpeed) {
+
+        player.vx =
+            player.vx / speed *
+            player.maxSpeed;
+
+        player.vy =
+            player.vy / speed *
+            player.maxSpeed;
+    }
+
+
+    // ========================
+    // FRICTION
+    // ========================
+
+    player.vx *= player.friction;
+    player.vy *= player.friction;
+
+
+    // ========================
+    // MOVE
+    // ========================
+
+    player.x += player.vx;
+    player.y += player.vy;
+
+
+    // ========================
+    // BORDER BOUNCE
+    // ========================
+
+    const bounce = 0.55;
+
+    if (player.x - player.radius < 0) {
+
+        player.x = player.radius;
+
+        if (player.vx < 0) {
+            player.vx *= -bounce;
+        }
+    }
+
+    if (player.x + player.radius > canvas.width) {
+
+        player.x =
+            canvas.width -
+            player.radius;
+
+        if (player.vx > 0) {
+            player.vx *= -bounce;
+        }
+    }
+
+    if (player.y - player.radius < 0) {
+
+        player.y = player.radius;
+
+        if (player.vy < 0) {
+            player.vy *= -bounce;
+        }
+    }
+
+    if (player.y + player.radius > canvas.height) {
+
+        player.y =
+            canvas.height -
+            player.radius;
+
+        if (player.vy > 0) {
+            player.vy *= -bounce;
+        }
+    }
+
+
+    // ========================
+    // SWORD SWING
+    // ========================
+
+    if (player.attacking) {
+
+        player.attackTimer += 16.67;
+
+        const progress =
+            player.attackTimer /
+            player.attackDuration;
+
+        const targetAngle =
+            Math.atan2(
+                mouse.y - player.y,
+                mouse.x - player.x
+            );
+
+        const startAngle =
+            targetAngle -
+            Math.PI / 2;
+
+        player.swordAngle =
+            startAngle +
+            progress * Math.PI;
+
+        if (progress >= 1) {
+            player.attacking = false;
+        }
+    }
+}
+
+
+// ========================
+// DRAW
+// ========================
+
+function draw() {
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    // ========================
+    // ENEMIES
+    // ========================
+
+    for (const enemy of enemies) {
+
+        const color =
+            getEnemyColor(enemy.hp);
+
+        // Outer square
+        ctx.fillStyle = color;
+
+        ctx.fillRect(
+            enemy.x - enemy.size / 2,
+            enemy.y - enemy.size / 2,
+            enemy.size,
+            enemy.size
+        );
+
+
+        // Smaller lighter-green square
+        const innerSize =
+            enemy.size * 0.55;
+
+        ctx.fillStyle = "#9cff9c";
+
+        ctx.fillRect(
+            enemy.x - innerSize / 2,
+            enemy.y - innerSize / 2,
+            innerSize,
+            innerSize
+        );
+
+
+        // HP text
+        ctx.fillStyle = "white";
+        ctx.font = "13px Arial";
+        ctx.textAlign = "center";
+
+        ctx.fillText(
+            enemy.hp,
+            enemy.x,
+            enemy.y - enemy.size / 2 - 7
+        );
+    }
+
+
+    // ========================
+    // PLAYER
+    // ========================
+
+    ctx.beginPath();
+
+    ctx.arc(
+        player.x,
+        player.y,
+        player.radius,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle = "#2196ff";
+    ctx.fill();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#66bbff";
+    ctx.stroke();
+
+
+    // ========================
+    // SWORD
+    // ========================
+
+    if (player.attacking) {
+
+        ctx.save();
+
+        ctx.translate(
+            player.x,
+            player.y
+        );
+
+        ctx.rotate(
+            player.swordAngle
+        );
+
+
+        // Handle
+        ctx.beginPath();
+
+        ctx.moveTo(9, 0);
+        ctx.lineTo(27, 0);
+
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#654321";
+        ctx.stroke();
+
+
+        // Guard
+        ctx.beginPath();
+
+        ctx.moveTo(24, -6);
+        ctx.lineTo(24, 6);
+
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#aaa";
+        ctx.stroke();
+
+
+        // Blade
+        ctx.beginPath();
+
+        ctx.moveTo(27, 0);
+        ctx.lineTo(62, 0);
+
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = "#ddd";
+        ctx.stroke();
+
+
+        // Blade tip
+        ctx.beginPath();
+
+        ctx.moveTo(62, 0);
+        ctx.lineTo(54, -4);
+        ctx.lineTo(54, 4);
+        ctx.closePath();
+
+        ctx.fillStyle = "#eee";
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+
+// ========================
+// GAME LOOP
+// ========================
+
+function gameLoop() {
+
+    update();
+    draw();
+
+    hpText.textContent =
+        player.hp;
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+</script>
+
+</body>
+</html>
+```
