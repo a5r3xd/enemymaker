@@ -296,13 +296,24 @@
                 </span>
             </label>
 
-            <input
-                type="range"
-                id="enemyMaxHp"
-                min="1"
-                max="10"
-                value="10"
-            >
+            <div id="enemyMaxHpControls">
+                <input
+                    type="range"
+                    id="enemyMaxHp"
+                    min="1"
+                    max="10"
+                    value="10"
+                >
+                <input
+                    type="number"
+                    id="enemyMaxHpInput"
+                    min="1"
+                    max="10"
+                    value="10"
+                    style="width: 90px; margin-top: 6px; padding: 6px; border-radius: 5px; border: 1px solid #555; background: #111; color: white;"
+                >
+                <span id="enemyMaxHpCapLabel" style="margin-left: 8px; color: #bbb; font-size: 12px;">/ 10</span>
+            </div>
         </div>
 
         <div class="menuEntry">
@@ -316,13 +327,24 @@
                 </span>
             </label>
 
-            <input
-                type="range"
-                id="enemyDamage"
-                min="1"
-                max="3"
-                value="1"
-            >
+            <div id="enemyDamageControls">
+                <input
+                    type="range"
+                    id="enemyDamage"
+                    min="1"
+                    max="3"
+                    value="1"
+                >
+                <input
+                    type="number"
+                    id="enemyDamageInput"
+                    min="1"
+                    max="3"
+                    value="1"
+                    style="width: 90px; margin-top: 6px; padding: 6px; border-radius: 5px; border: 1px solid #555; background: #111; color: white;"
+                >
+                <span id="enemyDamageCapLabel" style="margin-left: 8px; color: #bbb; font-size: 12px;">/ 3</span>
+            </div>
 
             <label class="modifierRow">
                 <input
@@ -356,6 +378,15 @@
                     disabled
                 >
                 Boss
+            </label>
+
+            <label class="modifierRow" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <span>Enemy Type</span>
+                <select id="enemyTypeSelect" style="padding: 6px 8px; border-radius: 5px; border: 1px solid #555; background: #111; color: white; min-width: 110px;">
+                    <option value="melee">Melee</option>
+                    <option value="ranged">Ranged</option>
+                    <option value="summoner">Summoner</option>
+                </select>
             </label>
         </div>
 
@@ -482,13 +513,15 @@
             </div>
 
             <div class="upgradeInfo">
-                One-time purchase
+                Level:
+                <span id="enemyCapUpgradeLevelLabel" class="value">0</span>
+                / 3
                 <br>
 
                 Unlocks enemy max HP up to
-                <span class="value">1000</span>
+                <span class="value">100000</span>
                 and enemy damage up to
-                <span class="value">50</span>
+                <span class="value">1000</span>
                 <br>
 
                 Cost:
@@ -503,6 +536,38 @@
 
             <button
                 id="enemyCapUpgradeButton"
+                class="upgradeButton"
+            >
+                Purchase
+            </button>
+
+        </div>
+
+        <div class="upgrade">
+
+            <div class="upgradeTitle">
+                Player Power Boost
+            </div>
+
+            <div class="upgradeInfo">
+                One-time purchase
+                <br>
+
+                Triple player attack damage and max HP
+                <br>
+
+                Cost:
+                <span
+                    id="playerPowerUpgradeCost"
+                    class="value"
+                >
+                    500
+                </span>
+                coins
+            </div>
+
+            <button
+                id="playerPowerUpgradeButton"
                 class="upgradeButton"
             >
                 Purchase
@@ -544,11 +609,23 @@ const menu =
 const enemyMaxHpSlider =
     document.getElementById("enemyMaxHp");
 
+const enemyMaxHpInput =
+    document.getElementById("enemyMaxHpInput");
+
+const enemyMaxHpCapLabel =
+    document.getElementById("enemyMaxHpCapLabel");
+
 const maxHpValue =
     document.getElementById("maxHpValue");
 
 const enemyDamageSlider =
     document.getElementById("enemyDamage");
+
+const enemyDamageInput =
+    document.getElementById("enemyDamageInput");
+
+const enemyDamageCapLabel =
+    document.getElementById("enemyDamageCapLabel");
 
 const enemyDamageValue =
     document.getElementById("enemyDamageValue");
@@ -564,6 +641,9 @@ const enemySuperSplitterModifier =
 
 const enemyBossModifier =
     document.getElementById("enemyBossModifier");
+
+const enemyTypeSelect =
+    document.getElementById("enemyTypeSelect");
 
 const spawnEnemyButton =
     document.getElementById("spawnEnemy");
@@ -630,10 +710,34 @@ const hpUpgradeCostText =
 const hpUpgradeButton =
     document.getElementById("hpUpgradeButton");
 
+const playerPowerUpgradeButton =
+    document.getElementById("playerPowerUpgradeButton");
+
 const enemyCapUpgradeButton =
     document.getElementById("enemyCapUpgradeButton");
 
+const enemyCapUpgradeLevelLabel =
+    document.getElementById("enemyCapUpgradeLevelLabel");
+
+let enemyCapUpgradeLevel = 0;
 let enemyCapUpgradePurchased = false;
+let playerPowerUpgradePurchased = false;
+
+function getEnemyCapUpgradeCost(level) {
+    if (level === 0) {
+        return 50;
+    }
+
+    if (level === 1) {
+        return 1000;
+    }
+
+    if (level === 2) {
+        return 2000;
+    }
+
+    return 0;
+}
 
 
 // ========================
@@ -714,6 +818,14 @@ function getUpgradeCost(level) {
     );
 }
 
+function getAttackUpgradeIncrease() {
+    return playerPowerUpgradePurchased ? 3 : 1;
+}
+
+function getHpUpgradeIncrease() {
+    return playerPowerUpgradePurchased ? 15 : 5;
+}
+
 
 function updateUpgradeUI() {
 
@@ -727,13 +839,42 @@ function updateUpgradeUI() {
             hpUpgradeLevel
         );
 
+    const enemyCapUpgradeCost =
+        getEnemyCapUpgradeCost(
+            enemyCapUpgradeLevel
+        );
+
+    enemyCapUpgradeLevelLabel.textContent =
+        enemyCapUpgradeLevel;
+
+    updateEnemyInputMode();
+
     enemySuperSplitterModifier.disabled =
-        !enemyCapUpgradePurchased;
+        enemyCapUpgradeLevel < 1;
 
     enemyBossModifier.disabled =
-        !enemyCapUpgradePurchased;
+        enemyCapUpgradeLevel < 1;
 
-    if (!enemyCapUpgradePurchased) {
+    enemyTypeSelect.disabled =
+        enemyCapUpgradeLevel < 2;
+
+    const summonerOption =
+        enemyTypeSelect.querySelector('option[value="summoner"]');
+
+    if (summonerOption) {
+        summonerOption.disabled =
+            enemyCapUpgradeLevel < 3;
+    }
+
+    if (enemyCapUpgradeLevel < 2) {
+        enemyTypeSelect.value = "melee";
+    }
+
+    if (enemyCapUpgradeLevel < 3 && enemyTypeSelect.value === "summoner") {
+        enemyTypeSelect.value = "melee";
+    }
+
+    if (enemyCapUpgradeLevel < 1) {
         enemySuperSplitterModifier.checked = false;
         enemyBossModifier.checked = false;
     }
@@ -764,53 +905,103 @@ function updateUpgradeUI() {
     hpUpgradeButton.disabled =
         coins < hpCost;
 
-    if (enemyCapUpgradePurchased) {
+    playerPowerUpgradeButton.disabled =
+        playerPowerUpgradePurchased || coins < 500;
+
+    if (enemyCapUpgradeLevel >= 3) {
         enemyCapUpgradeButton.disabled = true;
-        enemyCapUpgradeButton.textContent = "Purchased";
+        enemyCapUpgradeButton.textContent = "Maxed";
     } else {
         enemyCapUpgradeButton.disabled =
-            coins < 50;
-        enemyCapUpgradeButton.textContent =
-            "Purchase";
+            coins < enemyCapUpgradeCost;
+
+        if (enemyCapUpgradeLevel === 0) {
+            enemyCapUpgradeButton.textContent = "Purchase";
+        } else if (enemyCapUpgradeLevel === 1) {
+            enemyCapUpgradeButton.textContent = "Upgrade to Level 2";
+        } else {
+            enemyCapUpgradeButton.textContent = "Upgrade to Level 3";
+        }
     }
+
+    const enemyCapUpgradeCostText =
+        document.getElementById("enemyCapUpgradeCost");
+
+    enemyCapUpgradeCostText.textContent =
+        enemyCapUpgradeCost;
 }
 
 
 enemyCapUpgradeButton.addEventListener(
     "click",
     () => {
-        if (enemyCapUpgradePurchased) {
+        if (enemyCapUpgradeLevel >= 3) {
             return;
         }
 
-        if (coins < 50) {
+        const cost =
+            getEnemyCapUpgradeCost(
+                enemyCapUpgradeLevel
+            );
+
+        if (coins < cost) {
             return;
         }
 
-        coins -= 50;
-        enemyCapUpgradePurchased = true;
+        coins -= cost;
+        enemyCapUpgradeLevel += 1;
+        enemyCapUpgradePurchased = enemyCapUpgradeLevel > 0;
 
-        enemyMaxHpSlider.max = 1000;
-        enemyDamageSlider.max = 50;
+        if (enemyCapUpgradeLevel === 1) {
+            enemyMaxHpSlider.max = 1000;
+            enemyDamageSlider.max = 50;
+        }
+
+        if (enemyCapUpgradeLevel === 2) {
+            enemyMaxHpSlider.max = 100000;
+            enemyDamageSlider.max = 1000;
+            enemyMaxHpInput.max = 100000;
+            enemyDamageInput.max = 1000;
+        }
+
+        if (enemyCapUpgradeLevel === 3) {
+            enemyMaxHpSlider.max = 100000;
+            enemyDamageSlider.max = 1000;
+            enemyMaxHpInput.max = 100000;
+            enemyDamageInput.max = 1000;
+        }
 
         enemyMaxHpSlider.value =
             Math.min(
                 Number(enemyMaxHpSlider.value),
-                1000
+                enemyMaxHpSlider.max
             );
 
         enemyDamageSlider.value =
             Math.min(
                 Number(enemyDamageSlider.value),
-                50
+                enemyDamageSlider.max
             );
 
-        maxHpValue.textContent =
-            enemyMaxHpSlider.value;
+        syncEnemyMaxHpValue(enemyMaxHpSlider.value);
+        syncEnemyDamageValue(enemyDamageSlider.value);
+        updateEnemyInputMode();
+        updateUpgradeUI();
+    }
+);
 
-        enemyDamageValue.textContent =
-            enemyDamageSlider.value;
+playerPowerUpgradeButton.addEventListener(
+    "click",
+    () => {
+        if (playerPowerUpgradePurchased || coins < 500) {
+            return;
+        }
 
+        coins -= 500;
+        playerPowerUpgradePurchased = true;
+        player.attackDamage *= 3;
+        player.maxHp *= 3;
+        player.hp = player.maxHp;
         updateUpgradeUI();
     }
 );
@@ -849,7 +1040,7 @@ attackUpgradeButton.addEventListener(
 
         attackUpgradeLevel++;
 
-        player.attackDamage += 1;
+        player.attackDamage += getAttackUpgradeIncrease();
 
         updateUpgradeUI();
     }
@@ -873,9 +1064,9 @@ hpUpgradeButton.addEventListener(
 
         hpUpgradeLevel++;
 
-        player.maxHp += 5;
-
-        player.hp += 5;
+        const hpIncrease = getHpUpgradeIncrease();
+        player.maxHp += hpIncrease;
+        player.hp += hpIncrease;
 
         updateUpgradeUI();
     }
@@ -972,28 +1163,75 @@ savedTabButton.addEventListener(
 );
 
 
+function syncEnemyMaxHpValue(value) {
+    const maxValue = Number(enemyMaxHpSlider.max) || 10;
+    const clamped = Math.min(Math.max(Number(value) || 1, 1), maxValue);
+
+    enemyMaxHpSlider.value = String(clamped);
+    enemyMaxHpInput.value = String(clamped);
+    maxHpValue.textContent = String(clamped);
+    enemyMaxHpCapLabel.textContent = `/ ${maxValue}`;
+}
+
+function syncEnemyDamageValue(value) {
+    const maxValue = Number(enemyDamageSlider.max) || 3;
+    const clamped = Math.min(Math.max(Number(value) || 1, 1), maxValue);
+
+    enemyDamageSlider.value = String(clamped);
+    enemyDamageInput.value = String(clamped);
+    enemyDamageValue.textContent = String(clamped);
+    enemyDamageCapLabel.textContent = `/ ${maxValue}`;
+}
+
 enemyMaxHpSlider.addEventListener(
     "input",
     () => {
-        maxHpValue.textContent =
-            enemyMaxHpSlider.value;
+        syncEnemyMaxHpValue(enemyMaxHpSlider.value);
     }
 );
 
+enemyMaxHpInput.addEventListener(
+    "input",
+    () => {
+        syncEnemyMaxHpValue(enemyMaxHpInput.value);
+    }
+);
 
 enemyDamageSlider.addEventListener(
     "input",
     () => {
-        enemyDamageValue.textContent =
-            enemyDamageSlider.value;
+        syncEnemyDamageValue(enemyDamageSlider.value);
+    }
+);
+
+enemyDamageInput.addEventListener(
+    "input",
+    () => {
+        syncEnemyDamageValue(enemyDamageInput.value);
     }
 );
 
 
 enemyMaxHpSlider.max = 10;
 enemyDamageSlider.max = 3;
-maxHpValue.textContent = enemyMaxHpSlider.value;
-enemyDamageValue.textContent = enemyDamageSlider.value;
+enemyMaxHpInput.max = 10;
+enemyDamageInput.max = 3;
+syncEnemyMaxHpValue(enemyMaxHpSlider.value);
+syncEnemyDamageValue(enemyDamageSlider.value);
+
+function updateEnemyInputMode() {
+    const unlocked = enemyCapUpgradeLevel >= 2;
+    enemyMaxHpInput.style.display = unlocked ? "inline-block" : "none";
+    enemyDamageInput.style.display = unlocked ? "inline-block" : "none";
+    enemyMaxHpSlider.style.display = unlocked ? "none" : "inline-block";
+    enemyDamageSlider.style.display = unlocked ? "none" : "inline-block";
+    if (unlocked) {
+        enemyMaxHpInput.max = String(enemyMaxHpSlider.max);
+        enemyDamageInput.max = String(enemyDamageSlider.max);
+        syncEnemyMaxHpValue(enemyMaxHpSlider.value);
+        syncEnemyDamageValue(enemyDamageSlider.value);
+    }
+}
 
 
 // ========================
@@ -1034,12 +1272,21 @@ if (typeof gameState.playerMaxHp === "number") {
     );
 }
 
-if (typeof gameState.enemyCapUpgradePurchased === "boolean") {
-    enemyCapUpgradePurchased = gameState.enemyCapUpgradePurchased;
-    if (enemyCapUpgradePurchased) {
-        enemyMaxHpSlider.max = 1000;
-        enemyDamageSlider.max = 50;
-    }
+if (typeof gameState.enemyCapUpgradeLevel === "number") {
+    enemyCapUpgradeLevel = Math.max(0, Math.min(3, Math.round(gameState.enemyCapUpgradeLevel)));
+} else if (typeof gameState.enemyCapUpgradePurchased === "boolean") {
+    enemyCapUpgradeLevel = gameState.enemyCapUpgradePurchased ? 1 : 0;
+}
+
+if (typeof gameState.playerPowerUpgradePurchased === "boolean") {
+    playerPowerUpgradePurchased = gameState.playerPowerUpgradePurchased;
+}
+
+enemyCapUpgradePurchased = enemyCapUpgradeLevel > 0;
+
+if (enemyCapUpgradePurchased) {
+    enemyMaxHpSlider.max = enemyCapUpgradeLevel >= 2 ? 100000 : 1000;
+    enemyDamageSlider.max = enemyCapUpgradeLevel >= 2 ? 1000 : 50;
 }
 
 function saveGameState() {
@@ -1049,7 +1296,9 @@ function saveGameState() {
         hpUpgradeLevel,
         playerAttackDamage: player.attackDamage,
         playerMaxHp: player.maxHp,
+        enemyCapUpgradeLevel,
         enemyCapUpgradePurchased,
+        playerPowerUpgradePurchased,
         savedEnemies
     };
 
@@ -1139,7 +1388,7 @@ function drawEnemyShape(ctx, enemy, fillColor, innerColor) {
         );
     }
 
-    const innerRadius = radius * 0.55;
+    const innerRadius = radius * (enemy.enemyType === "ranged" ? 0.3 : 0.55);
     ctx.fillStyle = innerColor;
 
     if (enemy.supersplitter) {
@@ -1169,6 +1418,7 @@ function getEnemyPreviewImage(config) {
     const color = config.armored ? darkenColor(baseColor, 0.35) : baseColor;
     const innerColor = config.armored ? darkenColor(getEnemyInnerColor(config.maxHp), 0.25) : getEnemyInnerColor(config.maxHp);
     const previewSize = config.size || getEnemySizeFromMaxHp(config.maxHp);
+    const enemyType = config.enemyType || "melee";
 
     previewCtx.translate(32, 32);
     previewCtx.rotate(Math.random() * Math.PI * 2);
@@ -1191,7 +1441,7 @@ function getEnemyPreviewImage(config) {
     }
 
     previewCtx.fillStyle = innerColor;
-    const innerRadius = (previewSize / 2) * 0.55;
+    const innerRadius = (previewSize / 2) * (enemyType === "ranged" ? 0.3 : 0.55);
 
     if (config.supersplitter) {
         drawRegularPolygon(previewCtx, innerRadius, 6);
@@ -1350,7 +1600,7 @@ function renderSavedEnemies() {
 
         const stats = document.createElement("div");
         stats.className = "savedEnemyStats";
-        stats.textContent = `HP ${savedEnemy.maxHp} • DMG ${savedEnemy.damage}${savedEnemy.supersplitter ? " • Supersplitter" : savedEnemy.splitter ? " • Splitter" : ""}${savedEnemy.armored ? " • Armored" : ""}${savedEnemy.boss ? " • Boss" : ""}`;
+        stats.textContent = `HP ${savedEnemy.maxHp} • DMG ${savedEnemy.damage}${savedEnemy.supersplitter ? " • Supersplitter" : savedEnemy.splitter ? " • Splitter" : ""}${savedEnemy.armored ? " • Armored" : ""}${savedEnemy.type === "ranged" ? " • Ranged" : ""}${savedEnemy.boss ? " • Boss" : ""}`;
 
         meta.appendChild(name);
         meta.appendChild(stats);
@@ -1366,7 +1616,8 @@ function renderSavedEnemies() {
                 splitter: Boolean(savedEnemy.splitter || savedEnemy.supersplitter),
                 supersplitter: Boolean(savedEnemy.supersplitter),
                 boss: Boolean(savedEnemy.boss),
-                bossName: savedEnemy.bossName || savedEnemy.name || ""
+                bossName: savedEnemy.bossName || savedEnemy.name || "",
+                enemyType: savedEnemy.type || "melee"
             });
         });
 
@@ -1397,6 +1648,7 @@ saveEnemyButton.addEventListener("click", () => {
         supersplitter: Boolean(config.supersplitter),
         boss: Boolean(config.boss),
         bossName: config.bossName || name,
+        type: config.enemyType || "melee",
         image: getEnemyPreviewImage(config)
     };
 
@@ -1416,11 +1668,59 @@ renderSavedEnemies();
 // ========================
 
 const enemies = [];
+const projectiles = [];
 
 function randomDashCooldown() {
 
     return 3 +
         Math.random() * 2;
+}
+
+function shootEnemyProjectile(enemy) {
+    const directionX = player.x - enemy.x;
+    const directionY = player.y - enemy.y;
+    const distance = Math.hypot(directionX, directionY) || 1;
+
+    const bulletSize = Math.max(8, enemy.size * 0.5);
+    const projectileSpeed = enemy.enemyType === "ranged" ? 6 : 0;
+    const bulletColor = getEnemyColor(enemy.hp);
+
+    projectiles.push({
+        x: enemy.x,
+        y: enemy.y,
+        vx: (directionX / distance) * projectileSpeed,
+        vy: (directionY / distance) * projectileSpeed,
+        size: bulletSize,
+        color: bulletColor,
+        damage: enemy.damage,
+        owner: enemy,
+        life: 3.5
+    });
+}
+
+function spawnSummonFromEnemy(enemy) {
+    const summonType = Math.random() < 0.5 ? "melee" : "ranged";
+    const summonHp = Math.max(1, Math.floor(enemy.maxHp / 10));
+    const summonDamage = Math.max(1, Math.floor(enemy.damage / 4));
+    const summon = spawnEnemyFromConfig({
+        maxHp: summonHp,
+        damage: summonDamage,
+        size: getEnemySizeFromMaxHp(summonHp),
+        armored: false,
+        splitter: false,
+        supersplitter: false,
+        boss: false,
+        bossName: "",
+        enemyType: summonType
+    });
+
+    summon.x = enemy.x + (Math.random() - 0.5) * 40;
+    summon.y = enemy.y + (Math.random() - 0.5) * 40;
+    summon.vx = (Math.random() - 0.5) * 3;
+    summon.vy = (Math.random() - 0.5) * 3;
+    summon.canDamagePlayer = true;
+
+    return summon;
 }
 
 
@@ -1447,6 +1747,15 @@ function createEnemyConfigFromSliders() {
         enemyCapUpgradePurchased &&
         enemyNameIsValid(bossNameRaw);
 
+    const enemyType =
+        enemyCapUpgradeLevel >= 3 &&
+        enemyTypeSelect.value === "summoner"
+            ? "summoner"
+            : (enemyCapUpgradeLevel >= 2 &&
+                enemyTypeSelect.value === "ranged"
+                ? "ranged"
+                : "melee");
+
     const effectiveMaxHp = supersplitter ? maxHp * 2 : maxHp;
 
     const size =
@@ -1462,12 +1771,19 @@ function createEnemyConfigFromSliders() {
         supersplitter,
         boss,
         bossName: boss ? bossNameRaw : "",
+        enemyType,
         size
     };
 }
 
 function spawnEnemyFromConfig(config) {
     const padding = 60;
+    const enemyType =
+        config.enemyType === "summoner"
+            ? "summoner"
+            : config.enemyType === "ranged"
+                ? "ranged"
+                : "melee";
 
     const enemy = {
 
@@ -1491,6 +1807,7 @@ function spawnEnemyFromConfig(config) {
         supersplitter: Boolean(config.supersplitter),
         boss: Boolean(config.boss),
         bossName: config.bossName || "",
+        enemyType,
         createdAt: Date.now(),
 
         rotation:
@@ -1507,14 +1824,21 @@ function spawnEnemyFromConfig(config) {
         friction: 0.97,
 
         dashCooldown:
-            randomDashCooldown(),
+            enemyType === "ranged"
+                ? randomDashCooldown() * 0.5
+                : randomDashCooldown(),
 
         dashTimer:
-            randomDashCooldown(),
+            enemyType === "ranged"
+                ? randomDashCooldown() * 0.5
+                : randomDashCooldown(),
 
         dashing: false,
 
-        dashSpeed: 7,
+        dashSpeed:
+            enemyType === "ranged"
+                ? 4.2
+                : 7,
 
         canDamagePlayer: true
     };
@@ -1573,15 +1897,12 @@ function getEnemyColor(hp) {
 
     const minHp = 1000;
     const maxHp = 1000000;
-    const normalized =
-        Math.min(
-            1,
-            (clampedHp - minHp) /
-            (maxHp - minHp)
-        );
+    const t =
+        Math.log10(clampedHp) /
+        Math.log10(maxHp);
 
     const red = 255;
-    const green = Math.round(255 * (1 - normalized));
+    const green = Math.round(255 * (0.65 + 0.35 * (1 - t)));
     const blue = 0;
 
     return `rgb(${red}, ${green}, ${blue})`;
@@ -1773,7 +2094,8 @@ function checkSwordHits() {
                             splitter: true,
                             supersplitter: false,
                             boss: false,
-                            bossName: ""
+                            bossName: "",
+                            enemyType: enemy.enemyType || "melee"
                         });
 
                         child.x = enemy.x + offsetX * splitOffset;
@@ -1811,7 +2133,8 @@ function checkSwordHits() {
                             splitter: false,
                             supersplitter: false,
                             boss: false,
-                            bossName: ""
+                            bossName: "",
+                            enemyType: enemy.enemyType || "melee"
                         });
 
                         child.x = enemy.x + sign * splitOffset;
@@ -2089,8 +2412,18 @@ function updateEnemyDash(
 
         enemy.canDamagePlayer = true;
 
-        enemy.dashTimer =
-            randomDashCooldown();
+        if (enemy.enemyType === "ranged") {
+            enemy.dashSpeed = 4.2;
+            shootEnemyProjectile(enemy);
+            enemy.dashTimer = randomDashCooldown() * 0.5;
+        } else if (enemy.enemyType === "summoner") {
+            enemy.dashSpeed = 7;
+            spawnSummonFromEnemy(enemy);
+            enemy.dashTimer = randomDashCooldown();
+        } else {
+            enemy.dashSpeed = 7;
+            enemy.dashTimer = randomDashCooldown();
+        }
     }
 
 
@@ -2139,7 +2472,12 @@ function checkEnemyPlayerCollision(
         collisionDistance
     ) {
 
-        if (
+        if (enemy.enemyType === "ranged") {
+            if (distance > 0) {
+                player.vx += (dx / distance) * 1.6;
+                player.vy += (dy / distance) * 1.6;
+            }
+        } else if (
             enemy.canDamagePlayer
         ) {
 
@@ -2545,6 +2883,34 @@ function update() {
 
 
     // ========================
+    // PROJECTILES
+    // ========================
+
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const projectile = projectiles[i];
+
+        projectile.x += projectile.vx * deltaTime * 60;
+        projectile.y += projectile.vy * deltaTime * 60;
+        projectile.life -= deltaTime;
+
+        const dx = player.x - projectile.x;
+        const dy = player.y - projectile.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance <= player.radius + projectile.size / 2) {
+            damagePlayer(projectile.damage, projectile.owner || { x: projectile.x, y: projectile.y });
+            player.vx += (dx / (distance || 1)) * 2;
+            player.vy += (dy / (distance || 1)) * 2;
+            projectiles.splice(i, 1);
+            continue;
+        }
+
+        if (projectile.life <= 0 || projectile.x < -50 || projectile.x > canvas.width + 50 || projectile.y < -50 || projectile.y > canvas.height + 50) {
+            projectiles.splice(i, 1);
+        }
+    }
+
+    // ========================
     // ENEMIES
     // ========================
 
@@ -2693,6 +3059,14 @@ function draw() {
     // ========================
     // ENEMIES
     // ========================
+
+    for (const projectile of projectiles) {
+        ctx.save();
+        ctx.translate(projectile.x, projectile.y);
+        ctx.fillStyle = projectile.color;
+        ctx.fillRect(-projectile.size / 2, -projectile.size / 2, projectile.size, projectile.size);
+        ctx.restore();
+    }
 
     for (const enemy of enemies) {
 
